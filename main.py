@@ -2,14 +2,13 @@
 TODO:
  - Use OAuth to connect to twitter API - done
  - Find every mentions                 - done
- - Store :                             - todo
+ - Store :                             - done
     * Tweet                            - done
     * Author                           - done
     * Hashtags                         - done
-    * Date & time                      - todo
+    * Date & time                      - done
     * Retweet number                   - done
     * List of retweeters               - done
-
 """
 
 import sys
@@ -36,9 +35,25 @@ api = tweepy.API(auth)
 print api.me().name
 
 mentions = api.mentions_timeline()
-# mentions.reverse()
+mentions.reverse()
 
-print "   # MENTIONS"
+def word_is_hashtag(word):
+    return (word[0] == '#' and len(word) > 0)
+
 for mention in mentions:
-    retweets = mention.retweets()
-    print "%s: \"%s\" RT : %s, hastags : %s" % (mention.user.screen_name, mention.text, [rt.user.screen_name for rt in retweets], [word for word in mention.text.split() if word[0] == '#' and len(word) > 1])
+    try:
+        retweets = mention.retweets()
+    except tweepy.error.TweepError as e:
+        print >> sys.stderr, "Error %d : %s" % (e[0][0]["code"], e[0][0]["message"])
+        
+    if mention.id > db["last_id"]:
+        db["last_id"] = mention.id
+        db[mention.id] = {
+            "author"        : mention.user.screen_name,
+            "tweet"         : mention.text,
+            "retweets"      : len(retweets),
+            "rt_authors"    : [rt.user.screen_name for rt in retweets],
+            "hashtags"      : [word for word in mention.text.split() if word_is_hashtag(word)],
+            "date"          : mention.created_at
+            }
+        print "Added : %s" % (db[mention.id])
