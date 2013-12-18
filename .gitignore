@@ -41,3 +41,6 @@ tweepy/
 # emacs
 *~
 *\#*
+
+# secret stuff
+keys.py
