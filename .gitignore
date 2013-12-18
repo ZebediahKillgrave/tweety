@@ -44,3 +44,6 @@ tweepy/
 
 # secret stuff
 keys.py
+
+# db
+tweepy.db
