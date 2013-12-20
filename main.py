@@ -75,9 +75,10 @@ class MentionManager(object):
 
     def get_new_mentions(self, last_id):
         for mention in self.mentions:
-            if mention.id > last_id:
-                self.limits.check_remaining("statuses", "retweets/:id", len(self.tweets))
-                self.tweets.append(Tweet(mention))
+            if mention.id < last_id:
+                return
+            self.limits.check_remaining("statuses", "retweets/:id", len(self.tweets))
+            self.tweets.append(Tweet(mention))
 
     def archive_mentions(self):
         for tweet in self.tweets:
