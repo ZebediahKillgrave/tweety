@@ -1,0 +1,4 @@
+argparse==1.2.1
+sqlitedict==1.0.9
+tweepy==2.1
+wsgiref==0.1.2
