@@ -8,10 +8,8 @@ except ImportError:
 import tweepy
 import sqlitedict
 
-"""
-db is a dict we will save in tweepy.db sqlite file.
-We just need to init the "last_id" key if it does not exist.
-"""
+# db is a dict we will save in tweepy.db sqlite file.
+# We just need to init the "last_id" key if it does not exist.
 db = sqlitedict.SqliteDict("tweepy.db", autocommit = True)
 try:
     db["last_id"]
