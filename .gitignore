@@ -47,3 +47,6 @@ keys.py
 
 # db
 tweepy.db
+
+# virtualenv
+venv/
