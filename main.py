@@ -3,12 +3,15 @@ from time import time
 try:
     import keys
 except ImportError:
-    print >> sys.stderr, """Error : Could not import keys module.
-You must follow the How To in README.md"""
+    print >> sys.stderr, "Error : could not import key module (read the README)."
     exit(1)
 import tweepy
 import sqlitedict
 
+"""
+db is a dict we will save in tweepy.db sqlite file.
+We just need to init the "last_id" key if it does not exist.
+"""
 db = sqlitedict.SqliteDict("tweepy.db", autocommit = True)
 try:
     db["last_id"]
@@ -16,10 +19,12 @@ except KeyError:
     db["last_id"] = 0
 
 class TwitterLimit(Exception):
+    """Custom exception handling twiter api reset time for the display"""
     def __init__(self, message, reset):
         Exception.__init__(self, "%s [reset in %dsec]" % (message, reset - time()))
 
 class Tweet(object):
+    """Tweet class containing all the data we need to save about the mentions"""
     def __init__(self, tweet):
         self.id = tweet.id
         self.author = tweet.user.screen_name
@@ -50,12 +55,15 @@ class Tweet(object):
                                                           self.hashtags)
 
 class AuthHandler(object):
+    """Simple class that will connect us to twitter api when instantiate"""
     def __init__(self, consumer, consumer_secret, token, token_secret):
         self.auth = tweepy.OAuthHandler(consumer, consumer_secret)
         self.auth.set_access_token(token, token_secret)
         self.api = tweepy.API(self.auth)
 
 class RateLimit(object):
+    """This class will check the remaining calls to twitter api on demand and
+    raise a TwitterLimit exception if there is no more call available"""
     def __init__(self, limits):
         self.resources = limits["resources"]
         self.rate_limit_context = limits["rate_limit_context"]
@@ -66,6 +74,8 @@ class RateLimit(object):
             raise TwitterLimit("Limit reached for %s" % (name), current["reset"])
 
 class MentionManager(object):
+    """Main class of the program, it's used to get all the new mentions with an
+    id above the last_id we already got and to archive them into the database."""
     def __init__(self, api):
         self.limits = RateLimit(api.rate_limit_status())
         self.limits.check_remaining("statuses", "mentions_timeline")
@@ -84,6 +94,8 @@ class MentionManager(object):
         for tweet in self.tweets:
             tweet.archive()
             print "[+] %s" % (tweet)
+        if not self.tweets:
+            print "No tweet to archive."
 
 def main():
     auth = AuthHandler(keys.consumer_key, keys.consumer_secret,
