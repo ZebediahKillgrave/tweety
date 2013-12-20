@@ -1,8 +1,18 @@
 import sqlitedict
 
-db = sqlitedict.SqliteDict('tweepy.db', autocommit=True)
+RESET   = "\033[0m"
+RED     = "\033[031m"
+GREEN   = "\033[032m"
+BLUE    = "\033[034m"
+YELLOW  = "\033[033m"
 
-print "Last id : %s" % (db["last_id"])
+
+db = sqlitedict.SqliteDict('tweepy.db')
+
+try:
+    print "%sLast id : %s%s" % (RED, db["last_id"], RESET)
+except KeyError:
+    exit(1)
 for tid in db:
     try:
         date        = db[tid]["date"]
@@ -13,5 +23,8 @@ for tid in db:
         hashtags    = db[tid]["hashtags"]
     except:
         continue
-    print "[%s] %s : %s {RT : %s (%d)} {Hashtags : %s}" % (date, author, tweet, 
-                                                           rt_authors, retweets, hashtags)
+    print "%s[%s]%s %s%s%s : %s\n%s{RT : %s (%d)} {Hashtags : %s}%s" % (YELLOW, date, RESET,
+                                                                        BLUE, author, RESET,
+                                                                        tweet, GREEN, rt_authors,
+                                                                        retweets, hashtags,
+                                                                        RESET)
