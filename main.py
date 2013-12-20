@@ -1,4 +1,5 @@
 import sys
+from time import time
 try:
     import keys
 except ImportError:
@@ -8,13 +9,15 @@ You must follow the How To in README.md"""
 import tweepy
 import sqlitedict
 
-class Database(object):
-    def __init__(self, filename, autocommit = True):
-        self.db = sqlitedict.SqliteDict(filename, autocommit)
-        try:
-            self.db["last_id"]
-        except KeyError:
-            self.db["last_id"] = 0
+db = sqlitedict.SqliteDict("tweepy.db", autocommit = True)
+try:
+    db["last_id"]
+except KeyError:
+    db["last_id"] = 0
+
+class TwitterLimit(Exception):
+    def __init__(self, message, reset):
+        Exception.__init__(self, "%s [reset in %dsec]" % (message, reset - time()))
 
 class Tweet(object):
     def __init__(self, tweet):
@@ -29,7 +32,7 @@ class Tweet(object):
     def word_is_hashtag(self, word):
         return (word[0] == '#' and len(word) > 1)
 
-    def archive(self, db):
+    def archive(self):
         db[self.id] = {
             "author"            : self.author,
             "tweet"             : self.tweet,
@@ -38,6 +41,8 @@ class Tweet(object):
             "date"              : self.date,
             "hashtags"          : self.hashtags
             }
+        if db["last_id"] < self.id:
+            db["last_id"] = self.id
 
     def __str__(self):
         return "[%s] %s : %s\n(RT : %s (%d), HT : %s)" % (self.date, self.author, self.tweet,
@@ -50,8 +55,20 @@ class AuthHandler(object):
         self.auth.set_access_token(token, token_secret)
         self.api = tweepy.API(self.auth)
 
+class RateLimit(object):
+    def __init__(self, limits):
+        self.resources = limits["resources"]
+        self.rate_limit_context = limits["rate_limit_context"]
+
+    def check_remaining(self, category, name, done = 0):
+        current = self.resources[category]["/%s/%s" % (category, name)]
+        if current["remaining"] - done <= 0:
+            raise TwitterLimit("Limit reached for %s" % (name), current["reset"])
+
 class MentionManager(object):
     def __init__(self, api):
+        self.limits = RateLimit(api.rate_limit_status())
+        self.limits.check_remaining("statuses", "mentions_timeline")
         self.mentions = api.mentions_timeline()
         self.mentions.reverse()
         self.tweets = []
@@ -59,27 +76,23 @@ class MentionManager(object):
     def get_new_mentions(self, last_id):
         for mention in self.mentions:
             if mention.id > last_id:
-                try:
-                    self.tweets.append(Tweet(mention))
-                except tweepy.error.TweepError as e:
-                    print >> sys.stderr, "Error %d : %s" % (e[0][0]["code"], e[0][0]["message"])
+                self.limits.check_remaining("statuses", "retweets/:id", len(self.tweets))
+                self.tweets.append(Tweet(mention))
 
-    def archive_mentions(self, db):
+    def archive_mentions(self):
         for tweet in self.tweets:
-            tweet.archive(db)
+            tweet.archive()
+            print "[+] %s" % (tweet)
 
 def main():
-    db = Database("tweepy.db")
     auth = AuthHandler(keys.consumer_key, keys.consumer_secret,
                        keys.access_token, keys.access_token_secret)
-    engine = MentionManager(auth.api)
     try:
-        db.db["last_id"]
-    except KeyError:
-        db.db["last_id"] = 0
-    finally:
-        engine.get_new_mentions(db.db["last_id"])
-    engine.archive_mentions(db.db)
+        engine = MentionManager(auth.api)
+        engine.get_new_mentions(db["last_id"])
+    except TwitterLimit as e:
+        print >> sys.stderr, e
+    engine.archive_mentions()
 
 if __name__ == "__main__":
     main()
