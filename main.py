@@ -1,12 +1,16 @@
 import sys
-from time import time
 try:
     import keys
 except ImportError:
     print >> sys.stderr, "Error : could not import key module (read the README)."
     exit(1)
+from time import time
 import tweepy
 import sqlitedict
+from timeit import TimeIt
+
+GREEN   = "\033[032m"
+RESET   = "\033[0m"
 
 # db is a dict we will save in tweepy.db sqlite file.
 # We just need to init the "last_id" key if it does not exist.
@@ -15,6 +19,7 @@ try:
     db["last_id"]
 except KeyError:
     db["last_id"] = 0
+
 
 class TwitterLimit(Exception):
     """Custom exception handling twiter api reset time for the display"""
@@ -91,10 +96,11 @@ class MentionManager(object):
     def archive_mentions(self):
         for tweet in self.tweets:
             tweet.archive()
-            print "[+] %s" % (tweet)
+            print "[%s+%s] %s" % (GREEN, RESET, tweet)
         if not self.tweets:
             print "No tweet to archive."
 
+@TimeIt
 def main():
     auth = AuthHandler(keys.consumer_key, keys.consumer_secret,
                        keys.access_token, keys.access_token_secret)
